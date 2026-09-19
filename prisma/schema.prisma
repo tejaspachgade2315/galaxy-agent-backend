@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  name           String?
+  creditsBalance Int            @default(1000)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  chats          Chat[]
+  attachments    Attachment[]
+  creditLedgers  CreditLedger[]
+
+  @@map("users")
+}
+
+model Chat {
+  id        String     @id @default(cuid())
+  userId    String
+  title     String     @default("New Chat")
+  isPinned  Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  runs      AgentRun[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, isPinned, updatedAt])
+  @@map("chats")
+}
+
+model Message {
+  id           String       @id @default(cuid())
+  chatId       String
+  role         String // "user" | "assistant" | "system" | "tool"
+  content      Json // Array of ContentBlock objects: [{type: "text", text: "..."}]
+  status       String       @default("completed") // "pending" | "running" | "completed" | "failed" | "cancelled"
+  errorMessage String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  chat         Chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  attachments  Attachment[]
+  agentRuns    AgentRun[]
+
+  @@index([chatId, createdAt, id])
+  @@map("messages")
+}
+
+model AgentRun {
+  id               String           @id @default(cuid())
+  chatId           String
+  messageId        String
+  idempotencyKey   String           @unique
+  status           String           @default("running") // "queued" | "running" | "completed" | "failed" | "cancelled"
+  model            String           @default("openrouter/free")
+  routedModel      String?
+  promptTokens     Int              @default(0)
+  completionTokens Int              @default(0)
+  creditsCost      Int              @default(0)
+  errorMessage     String?
+  startedAt        DateTime         @default(now())
+  completedAt      DateTime?
+  chat             Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message          Message          @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  toolInvocations  ToolInvocation[]
+  runSkills        RunSkill[]
+  waitpoints       Waitpoint[]
+
+  @@index([chatId, status])
+  @@index([idempotencyKey])
+  @@map("agent_runs")
+}
+
+model RunSkill {
+  id          String   @id @default(cuid())
+  runId       String
+  skillName   String
+  contentHash String
+  loadedAt    DateTime @default(now())
+  run         AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, skillName])
+  @@map("run_skills")
+}
+
+model ToolInvocation {
+  id              String    @id @default(cuid())
+  runId           String
+  toolName        String
+  input           Json
+  output          Json?
+  status          String    @default("pending") // "pending" | "running" | "completed" | "failed"
+  errorMessage    String?
+  executionTimeMs Int?
+  creditsCost     Int       @default(0)
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+  run             AgentRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, toolName])
+  @@map("tool_invocations")
+}
+
+model Waitpoint {
+  id          String    @id @default(cuid())
+  runId       String
+  token       String    @unique
+  type        String // "approval" | "input" | "credit"
+  status      String    @default("pending") // "pending" | "resolved" | "expired"
+  payload     Json?
+  response    Json?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  run         AgentRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("waitpoints")
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  userId     String
+  messageId  String?
+  fileName   String
+  fileType   String
+  fileSize   Int
+  url        String
+  assemblyId String?
+  status     String   @default("ready") // "uploading" | "ready" | "failed"
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message    Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("attachments")
+}
+
+model CreditLedger {
+  id             String   @id @default(cuid())
+  userId         String
+  amount         Int // positive for credit, negative for debit
+  balanceAfter   Int
+  reason         String
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("credit_ledgers")
+}
