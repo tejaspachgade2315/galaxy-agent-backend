@@ -28,7 +28,11 @@ export async function POST(req: NextRequest) {
         key: authKey,
         expires,
       },
-      template_id: templateId,
+      steps: {
+        ":original": {
+          robot: "/upload/handle",
+        },
+      },
       max_size: 500 * 1024 * 1024, // 0.5 GB per file (Community plan limit)
     };
 
