@@ -130,7 +130,12 @@ class RunManager {
     dispatchWebhook("agent.started", { runId, chatId, isPlanMode }).catch(() => {});
 
     const startTime = Date.now();
-    let accumulatedThinking = "";
+    let accumulatedThinking = isPlanMode
+      ? "Analyzing conversation history in Plan Mode. Formulating structured execution phases and risk mitigation..."
+      : "Analyzing intent and evaluating required tools, media pipeline, and constraints...";
+    streamState.thinking = accumulatedThinking;
+    this.emit(runId, "thinking", { text: accumulatedThinking });
+
     let accumulatedText = "";
     const contentBlocks: ContentBlock[] = [];
     let totalCreditsCost = 0;
@@ -279,6 +284,25 @@ class RunManager {
             parsedInput = {};
           }
 
+          // Synthesize live step-by-step thought process for tool execution
+          let toolReasoning = "";
+          if (tc.name === "gpt_image_2") {
+            const p = parsedInput.prompt || "custom visual description";
+            toolReasoning = `\n\n[Action Plan]: Generating image with \`gpt_image_2\`.\n[Prompt]: "${p}"\n[Pipeline]: Dispatching diffusion generation to Magica GPU cluster (processing high-resolution asset)...`;
+          } else if (tc.name === "crop_image") {
+            toolReasoning = `\n\n[Action Plan]: Cropping image with \`crop_image\`.\n[Aspect Ratio]: ${parsedInput.aspect_ratio || "custom"}\n[Pipeline]: Calculating pixel boundaries and dispatching crop transformation...`;
+          } else if (tc.name === "merge_videos") {
+            toolReasoning = `\n\n[Action Plan]: Merging video assets with \`merge_videos\`.\n[Transition]: ${parsedInput.transition || "fade"}\n[Pipeline]: Concatenating video streams and transcoding output...`;
+          } else if (tc.name === "load_skill") {
+            toolReasoning = `\n\n[Action Plan]: Loading specialized skill "${parsedInput.skillName}" into agent working memory.`;
+          } else {
+            toolReasoning = `\n\n[Action Plan]: Executing tool \`${tc.name}\` with validated parameters.`;
+          }
+
+          accumulatedThinking += toolReasoning;
+          streamState.thinking = accumulatedThinking;
+          this.emit(runId, "thinking", { text: toolReasoning });
+
           // Emit tool_start
           this.emit(runId, "tool_start", {
             toolCallId: tc.id,
@@ -294,6 +318,17 @@ class RunManager {
           };
           contentBlocks.push(toolCallBlock);
           streamState.contentBlocks.push(toolCallBlock);
+
+          // Persist active progress to DB message so page reload or sync shows live thinking immediately
+          await prisma.message.update({
+            where: { id: assistantMessageId },
+            data: {
+              content: [
+                { type: "thinking", thinking: accumulatedThinking },
+                ...contentBlocks,
+              ] as any,
+            },
+          }).catch(() => {});
 
           this.emit(runId, "status", { status: "working", step: `Running ${tc.name}...` });
 
@@ -336,6 +371,24 @@ class RunManager {
           };
           contentBlocks.push(toolResultBlock);
           streamState.contentBlocks.push(toolResultBlock);
+
+          const completionNote = executionResult.isError
+            ? `\n[Result]: Tool \`${tc.name}\` failed: ${executionResult.output?.error || "Execution error"}. Formulating recovery.`
+            : `\n[Result]: Tool \`${tc.name}\` completed in ${(toolDurationMs / 1000).toFixed(1)}s (cost: ${executionResult.creditsCost} credits). Preparing final presentation.`;
+
+          accumulatedThinking += completionNote;
+          streamState.thinking = accumulatedThinking;
+          this.emit(runId, "thinking", { text: completionNote });
+
+          await prisma.message.update({
+            where: { id: assistantMessageId },
+            data: {
+              content: [
+                { type: "thinking", thinking: accumulatedThinking },
+                ...contentBlocks,
+              ] as any,
+            },
+          }).catch(() => {});
 
           // Feed result back into OpenRouter message list for next step
           openRouterMessages.push({

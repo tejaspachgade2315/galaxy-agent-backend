@@ -1,9 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { authenticateRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SendMessageInputSchema } from "@/contracts";
 import { runManager } from "@/lib/agent";
 import { triggerClient } from "@/lib/trigger";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 300; // 5 minutes execution window for serverless lambdas
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -34,9 +37,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     });
 
     if (activeRun) {
-      // Auto-recover stale lock if run has been active for more than 10 minutes without completion
-      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-      if (activeRun.startedAt < tenMinutesAgo) {
+      // Auto-recover stale lock if run has been active for more than 3 minutes without completion
+      const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
+      if (activeRun.startedAt < threeMinutesAgo) {
         await prisma.$transaction([
           prisma.agentRun.update({
             where: { id: activeRun.id },
@@ -134,9 +137,13 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         console.warn("[Trigger.dev] Task trigger warning:", err);
       });
 
-    // 2. Fire off agent execution
-    runManager.executeRun(agentRun.id, chatId, assistantMessage.id, Boolean(planMode)).catch((err) => {
-      console.error(`Async run execution failed for ${agentRun.id}:`, err);
+    // 2. Fire off agent execution inside Next.js 15 after() to prevent serverless freeze
+    after(async () => {
+      try {
+        await runManager.executeRun(agentRun.id, chatId, assistantMessage.id, Boolean(planMode));
+      } catch (err) {
+        console.error(`Async run execution failed for ${agentRun.id}:`, err);
+      }
     });
 
     return NextResponse.json(
