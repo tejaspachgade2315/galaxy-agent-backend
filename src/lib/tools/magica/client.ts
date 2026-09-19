@@ -1,3 +1,5 @@
+import { triggerClient } from "../../trigger";
+
 export interface MagicaRunResponse {
   runId: string;
   status: "queued" | "running" | "completed" | "failed";
@@ -19,6 +21,15 @@ export class MagicaClient {
   }
 
   async runNode(nodeType: string, input: Record<string, any>, signal?: AbortSignal): Promise<any> {
+    // Dispatch typed child task to Trigger.dev for tracking
+    triggerClient
+      .dispatchMagicaChildTask({
+        parentRunId: input.runId || "magica_job",
+        nodeType: nodeType as any,
+        input,
+      })
+      .catch(() => {});
+
     if (!this.isConfigured()) {
       console.warn(`[MagicaClient] MAGICA_API_KEY is not set. Using high-fidelity realistic fixture for "${nodeType}".`);
       return this.getFixtureResponse(nodeType, input);

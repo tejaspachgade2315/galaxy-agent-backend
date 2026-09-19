@@ -3,6 +3,7 @@ import { authenticateRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SendMessageInputSchema } from "@/contracts";
 import { runManager } from "@/lib/agent";
+import { triggerClient } from "@/lib/trigger";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -118,7 +119,22 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return [uMsg, aMsg, run];
     });
 
-    // Fire off durable agent execution in the background
+    // 1. Dispatch durable background task in Trigger.dev
+    triggerClient
+      .dispatchAgentTurn({
+        runId: agentRun.id,
+        chatId,
+        messageId: assistantMessage.id,
+        content,
+        model,
+        isPlanMode: Boolean(planMode),
+        idempotencyKey,
+      })
+      .catch((err) => {
+        console.warn("[Trigger.dev] Task trigger warning:", err);
+      });
+
+    // 2. Fire off agent execution
     runManager.executeRun(agentRun.id, chatId, assistantMessage.id, Boolean(planMode)).catch((err) => {
       console.error(`Async run execution failed for ${agentRun.id}:`, err);
     });
