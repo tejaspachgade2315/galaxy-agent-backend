@@ -1,0 +1,29 @@
+---
+title: "Stream Run"
+api: "GET /api/runs/{id}/stream"
+description: "Subscribe to real-time Server-Sent Events (SSE) for an agent run"
+---
+
+# Stream Run
+
+Subscribes to token-by-token text streaming, real-time thinking progress, tool executions, and waitpoint approval notifications.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique ID of the agent run (`runId`).
+</ParamField>
+
+### Event Stream Format
+
+The stream emits standard `text/event-stream` format with the following event types:
+
+| Event | Data Format | Description |
+| :--- | :--- | :--- |
+| `thinking` | `{"text": "..."}` | Real-time reasoning thoughts emitted before the answer. |
+| `text_delta` | `{"text": "..."}` | Incremental assistant response tokens. |
+| `tool_start` | `{"toolCallId": "...", "name": "...", "input": {...}}` | Emitted when a tool begins execution. |
+| `tool_end` | `{"toolCallId": "...", "name": "...", "output": {...}, "creditsCost": 5}` | Emitted when a tool finishes, containing output asset URLs. |
+| `waitpoint` | `{"id": "...", "token": "...", "type": "plan_approval", "payload": {...}}` | Emitted when the run pauses for human decision. |
+| `status` | `{"status": "running", "step": "..."}` | High-level status indicator for UI spinners. |
+| `done` | `{"runId": "...", "status": "completed"}` | Terminal event signaling completion. |

@@ -1,0 +1,28 @@
+---
+title: "Webhooks Overview"
+description: "Subscribe to lifecycle events for agent runs and tool executions"
+---
+
+# Outbound Webhooks
+
+Galaxy emits signed HTTP `POST` notifications to your configured `WEBHOOK_URL` whenever key lifecycle events occur.
+
+## Event Types
+
+| Event | Trigger | Payload Contents |
+| :--- | :--- | :--- |
+| `agent.started` | An agent run is initialized and begins prompt assembly | `runId`, `chatId`, `isPlanMode` |
+| `tool.completed` | A typed tool finishes executing | `runId`, `chatId`, `toolName`, `creditsCost`, `isError` |
+| `agent.completed` | An agent turn finishes terminal execution | `runId`, `chatId`, `status`, `creditsCost`, `durationMs` |
+| `agent.failed` | An unrecoverable error terminates the turn | `runId`, `chatId`, `error`, `status` |
+
+## Webhook Headers
+
+Every delivery contains the following HTTP headers:
+
+```http
+Content-Type: application/json
+X-Galaxy-Event: agent.completed
+X-Galaxy-Signature: sha256=d5a3998b67...
+X-Galaxy-Timestamp: 2026-09-19T00:00:00.000Z
+```

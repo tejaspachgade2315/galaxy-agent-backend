@@ -1,0 +1,35 @@
+---
+title: "Get Credits"
+api: "GET /api/credits"
+description: "Retrieve user credit balance and transaction ledger audit history"
+---
+
+# Get Credits
+
+Fetches the authenticated user's current credit balance and the 20 most recent transactional ledger records.
+
+### Response
+
+```json
+{
+  "balance": 985,
+  "history": [
+    {
+      "id": "cmux...",
+      "amount": -15,
+      "balanceAfter": 985,
+      "reason": "Agent turn run cmu...",
+      "idempotencyKey": "charge_cmu...",
+      "createdAt": "2026-09-19T00:00:00.000Z"
+    },
+    {
+      "id": "cmuy...",
+      "amount": 1000,
+      "balanceAfter": 1000,
+      "reason": "Initial account allotment",
+      "idempotencyKey": "initial_alloc_...",
+      "createdAt": "2026-09-17T00:00:00.000Z"
+    }
+  ]
+}
+```

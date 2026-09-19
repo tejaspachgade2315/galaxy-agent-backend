@@ -1,0 +1,44 @@
+---
+title: "Resolve Waitpoint"
+api: "POST /api/runs/{id}/waitpoints/{token}/resolve"
+description: "Submit human approval or rejection to resume a paused agent run"
+---
+
+# Resolve Waitpoint
+
+Submits human approval to an active waitpoint token (e.g. Plan Mode approval or high-cost media execution). Idempotent: duplicate submissions are tolerated safely without error.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique ID of the agent run.
+</ParamField>
+
+<ParamField path="token" type="string" required>
+  The unique waitpoint token emitted via the SSE stream or stored in PostgreSQL.
+</ParamField>
+
+### Request Body
+
+<ParamField body="approved" type="boolean" required>
+  `true` to approve and continue execution; `false` to reject or cancel the plan.
+</ParamField>
+
+<ParamField body="response" type="object" optional>
+  Optional structured parameters or feedback to pass back into the agent context.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "status": "resolved",
+  "waitpoint": {
+    "id": "cmux...",
+    "token": "wp_...",
+    "status": "resolved",
+    "resolvedAt": "2026-09-19T00:00:00.000Z"
+  }
+}
+```

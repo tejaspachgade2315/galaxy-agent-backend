@@ -1,0 +1,526 @@
+{
+  "info": {
+    "_postman_id": "galaxy-agent-collection-v1",
+    "name": "Galaxy Agent AI - Full API Collection",
+    "description": "Comprehensive Postman Collection for the Galaxy Agent Workspace platform. Includes all endpoints for Chat management, Message turns, Agent Orchestration (OpenRouter Free), Typed Tool execution (Magica crop_image, gpt_image_2, merge_videos), Progressive On-Demand Skills (load_skill), Transloadit uploads, Credits ledger, and Realtime SSE execution streaming.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "chatId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "runId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "attachmentId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Chats Management",
+      "description": "Endpoints to create, list, retrieve, update, and delete agent chat sessions.",
+      "item": [
+        {
+          "name": "Create Chat",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) {",
+                  "    pm.collectionVariables.set(\"chatId\", jsonData.id);",
+                  "    console.log(\"Saved chatId:\", jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Creative Media & Architecture Session\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats"]
+            },
+            "description": "Creates a new chat session and saves its ID into the collection variable `chatId`."
+          }
+        },
+        {
+          "name": "List Chats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chats?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Maximum number of items to return (1-50)"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Pagination cursor from previous nextCursor"
+                }
+              ]
+            },
+            "description": "Fetches a paginated list of chat sessions ordered by pinned status and last updated."
+          }
+        },
+        {
+          "name": "Get Chat by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/{{chatId}}?limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "{{chatId}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Limit messages returned"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Message pagination cursor"
+                }
+              ]
+            },
+            "description": "Retrieves full details of a chat including messages history, attachments, and active agent run."
+          }
+        },
+        {
+          "name": "Update Chat (Title & Pin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"AI Studio & Tool Execution Workspace\",\n  \"isPinned\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/{{chatId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "{{chatId}}"]
+            },
+            "description": "Updates a chat's title and/or pinned state."
+          }
+        },
+        {
+          "name": "Delete Chat",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/{{chatId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "{{chatId}}"]
+            },
+            "description": "Deletes a chat session along with its messages and execution history."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Messages & Agent Orchestration",
+      "description": "Dispatches user messages, triggers the agent execution loop with OpenRouter Free, invokes Magica tools, loads progressive skills, and creates agent runs.",
+      "item": [
+        {
+          "name": "Send Message - Generate Image (Magica gpt_image_2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.runId) {",
+                  "    pm.collectionVariables.set(\"runId\", jsonData.runId);",
+                  "    console.log(\"Saved runId:\", jsonData.runId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"generate an image of prime miniter of india\",\n  \"planMode\": false,\n  \"model\": \"openrouter/free\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/{{chatId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "{{chatId}}", "messages"]
+            },
+            "description": "Triggers agent execution to generate an image using Magica `gpt_image_2`. Automatically extracts `runId`."
+          }
+        },
+        {
+          "name": "Send Message - Crop Image (Magica crop_image)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.runId) {",
+                  "    pm.collectionVariables.set(\"runId\", jsonData.runId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Please crop the image https://images.unsplash.com/photo-1534447677768-be436bb09401 with width 500 and height 500 centered using crop_image tool.\",\n  \"planMode\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/{{chatId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "{{chatId}}", "messages"]
+            },
+            "description": "Triggers the `crop_image` tool on an image URL."
+          }
+        },
+        {
+          "name": "Send Message - Merge Videos (Magica merge_videos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.runId) {",
+                  "    pm.collectionVariables.set(\"runId\", jsonData.runId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Combine https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4 and https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4 into a single video with a fade transition using merge_videos.\",\n  \"planMode\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/{{chatId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "{{chatId}}", "messages"]
+            },
+            "description": "Triggers the `merge_videos` tool to concatenate video clips."
+          }
+        },
+        {
+          "name": "Send Message - Load Progressive Skill (load_skill)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.runId) {",
+                  "    pm.collectionVariables.set(\"runId\", jsonData.runId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Load the image-editing skill guidance and tell me what tool it recommends.\",\n  \"planMode\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/{{chatId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "{{chatId}}", "messages"]
+            },
+            "description": "Tests on-demand progressive skill loading (`load_skill`) and SHA-256 integrity verification."
+          }
+        },
+        {
+          "name": "Send Message - Plan Mode Turn",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.runId) {",
+                  "    pm.collectionVariables.set(\"runId\", jsonData.runId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Plan an end-to-end media campaign that generates 3 cyberpunk posters, crops them to square banners, and stitches promo video teasers.\",\n  \"planMode\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/{{chatId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "{{chatId}}", "messages"]
+            },
+            "description": "Dispatches query with `planMode: true`, engaging the Architect persona with markdown checklists."
+          }
+        },
+        {
+          "name": "Send Message - With Attached Files",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Please review this uploaded image and crop a 400x400 centered square using crop_image.\",\n  \"planMode\": false,\n  \"attachmentIds\": [\"{{attachmentId}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/{{chatId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "{{chatId}}", "messages"]
+            },
+            "description": "Sends a message linked to uploaded file attachments."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Runs & Realtime Streaming",
+      "description": "Inspects running agent turns, connects to Server-Sent Events (SSE) live streams, and aborts running jobs.",
+      "item": [
+        {
+          "name": "Connect Realtime SSE Stream",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runs/{{runId}}/stream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "runs", "{{runId}}", "stream"]
+            },
+            "description": "Establishes a Server-Sent Events (SSE) live connection. Streams `thinking`, `text_delta`, `tool_start`, `tool_end`, `status`, and `done` events with 15s keep-alive heartbeats."
+          }
+        },
+        {
+          "name": "Get Run Details by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/runs/{{runId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "runs", "{{runId}}"]
+            },
+            "description": "Fetches complete run state, including tool invocations with timings and credit costs, loaded skills with hashes, and assistant message."
+          }
+        },
+        {
+          "name": "Cancel Running Agent Turn",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/runs/{{runId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "runs", "{{runId}}", "cancel"]
+            },
+            "description": "Sends an abort signal to cancel a queued or running agent turn."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Credits & Billing",
+      "description": "Tracks user credit balance and transaction ledger.",
+      "item": [
+        {
+          "name": "Get Credit Balance & History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/credits",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "credits"]
+            },
+            "description": "Returns the current credit balance (default 1000) and the 20 most recent credit deduction ledger items."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Transloadit & File Attachments",
+      "description": "Transloadit Community resumable uploads, HMAC-SHA384 signed assembly parameters, and attachment linking.",
+      "item": [
+        {
+          "name": "Get Transloadit Assembly Params",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/transloadit/assembly",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "transloadit", "assembly"]
+            },
+            "description": "Generates HMAC-SHA384 signed parameters and expiration timestamp for direct client-to-Transloadit uploads under Community plan limits (500 MB max)."
+          }
+        },
+        {
+          "name": "Register Attachment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) {",
+                  "    pm.collectionVariables.set(\"attachmentId\", jsonData.id);",
+                  "    console.log(\"Saved attachmentId:\", jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileName\": \"cyberpunk_sketch.png\",\n  \"fileType\": \"image/png\",\n  \"fileSize\": 1048576,\n  \"url\": \"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200\",\n  \"status\": \"ready\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/attachments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attachments"]
+            },
+            "description": "Registers an uploaded file in PostgreSQL and saves its `id` to the `attachmentId` collection variable."
+          }
+        },
+        {
+          "name": "List User Attachments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attachments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attachments"],
+              "query": [
+                {
+                  "key": "messageId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional filter by associated message ID"
+                }
+              ]
+            },
+            "description": "Returns all attachments registered for the current user."
+          }
+        }
+      ]
+    }
+  ]
+}

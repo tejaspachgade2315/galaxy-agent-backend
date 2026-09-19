@@ -1,0 +1,61 @@
+---
+title: "Send Message"
+api: "POST /api/chats/{id}/messages"
+description: "Dispatch a new turn to the agent orchestrator"
+---
+
+# Send Message
+
+Dispatches a user message to an active chat session. Starts an asynchronous agent turn, records the turn idempotently, and returns immediate access to the real-time SSE stream.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique ID of the chat conversation.
+</ParamField>
+
+### Request Body
+
+<ParamField body="content" type="string" required>
+  The text prompt to send to the agent.
+</ParamField>
+
+<ParamField body="planMode" type="boolean" default="false">
+  When `true`, instructs the agent to operate in Plan Mode, drafting an architectural strategy and pausing for human waitpoint approval before executing destructive actions.
+</ParamField>
+
+<ParamField body="attachmentIds" type="string[]" optional>
+  List of attachment IDs uploaded via Transloadit to inject into the model's context.
+</ParamField>
+
+<ParamField body="idempotencyKey" type="string" optional>
+  Unique idempotency token preventing duplicate run creation upon network retries.
+</ParamField>
+
+### Response
+
+```json
+{
+  "chatId": "cmu5nvdc40001pi3djb6h0qke",
+  "userMessage": {
+    "id": "cmu5nvf0x0006pi3d6p5q2x8a",
+    "role": "user",
+    "content": [{ "type": "text", "text": "Crop this image" }]
+  },
+  "assistantMessage": {
+    "id": "cmu5nvf0y0007pi3doqlua8yb",
+    "role": "assistant",
+    "status": "running"
+  },
+  "runId": "cmu5nvf0y0007pi3doqlua8yb",
+  "status": "running"
+}
+```
+
+### Error Codes
+
+| Status | Code | Description |
+| :--- | :--- | :--- |
+| `400` | `Bad Request` | Invalid payload or missing prompt content. |
+| `404` | `Not Found` | Chat not found or does not belong to the authenticated user. |
+| `409` | `Conflict` | Another agent turn is currently active for this chat. Protects state integrity. |

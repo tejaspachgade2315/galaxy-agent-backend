@@ -1,0 +1,42 @@
+---
+title: "Signature Verification"
+description: "Verify cryptographic HMAC-SHA256 signatures on inbound webhooks"
+---
+
+# Verifying Webhook Signatures
+
+To ensure that incoming webhook payloads originate from Galaxy, verify the `X-Galaxy-Signature` header using your `WEBHOOK_SECRET`.
+
+### Node.js Verification Example
+
+```javascript
+import crypto from "crypto";
+
+export function verifyGalaxyWebhook(rawBody, signatureHeader, secret) {
+  const expectedSignature = `sha256=${crypto
+    .createHmac("sha256", secret)
+    .update(rawBody)
+    .digest("hex")}`;
+
+  return crypto.timingSafeEqual(
+    Buffer.from(signatureHeader),
+    Buffer.from(expectedSignature)
+  );
+}
+```
+
+### Python Verification Example
+
+```python
+import hmac
+import hashlib
+
+def verify_galaxy_webhook(raw_body: bytes, signature_header: str, secret: str) -> bool:
+    expected_signature = "sha256=" + hmac.new(
+        secret.encode('utf-8'),
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+    
+    return hmac.compare_digest(signature_header, expected_signature)
+```

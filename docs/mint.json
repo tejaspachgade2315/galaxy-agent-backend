@@ -1,0 +1,88 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Galaxy Agent Chat API",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#8B5CF6",
+    "light": "#A78BFA",
+    "dark": "#6D28D9",
+    "anchors": {
+      "from": "#8B5CF6",
+      "to": "#3B82F6"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Demo Application",
+      "url": "http://localhost:3000"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Postman Collection",
+    "url": "https://raw.githubusercontent.com/galaxy-agent/backend/main/galaxy_postman_collection.json"
+  },
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "authentication"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "concepts/typed-tools",
+        "concepts/on-demand-skills",
+        "concepts/durable-execution",
+        "concepts/credits-ledger"
+      ]
+    },
+    {
+      "group": "Chat & Messages API",
+      "pages": [
+        "api-reference/chats/list",
+        "api-reference/chats/create",
+        "api-reference/chats/get",
+        "api-reference/messages/send"
+      ]
+    },
+    {
+      "group": "Runs & Streaming API",
+      "pages": [
+        "api-reference/runs/get",
+        "api-reference/runs/stream",
+        "api-reference/runs/cancel",
+        "api-reference/runs/waitpoints"
+      ]
+    },
+    {
+      "group": "Media & Uploads API",
+      "pages": [
+        "api-reference/transloadit/assembly",
+        "api-reference/attachments/create"
+      ]
+    },
+    {
+      "group": "Credits API",
+      "pages": [
+        "api-reference/credits/balance"
+      ]
+    },
+    {
+      "group": "Outbound Webhooks",
+      "pages": [
+        "webhooks/overview",
+        "webhooks/signature-verification"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/galaxy-agent"
+  }
+}
