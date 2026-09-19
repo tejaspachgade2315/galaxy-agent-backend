@@ -297,6 +297,7 @@ class RunManager {
 
           this.emit(runId, "status", { status: "working", step: `Running ${tc.name}...` });
 
+          const toolStartTime = Date.now();
           // Execute via typed registry
           const executionResult = await toolRegistry.execute(tc.name, parsedInput, {
             chatId,
@@ -304,6 +305,7 @@ class RunManager {
             userId,
             signal: abortController.signal,
           });
+          const toolDurationMs = Date.now() - toolStartTime;
 
           totalCreditsCost += executionResult.creditsCost;
 
@@ -313,6 +315,7 @@ class RunManager {
             name: tc.name,
             output: executionResult.output,
             creditsCost: executionResult.creditsCost,
+            durationMs: toolDurationMs,
           });
           dispatchWebhook("tool.completed", {
             runId,
@@ -329,6 +332,7 @@ class RunManager {
             output: executionResult.output,
             isError: executionResult.isError,
             creditsCost: executionResult.creditsCost,
+            durationMs: toolDurationMs,
           };
           contentBlocks.push(toolResultBlock);
           streamState.contentBlocks.push(toolResultBlock);

@@ -87,7 +87,7 @@ export class MagicaClient {
           throw new Error("Magica node execution was cancelled.");
         }
 
-        await new Promise((r) => setTimeout(r, 2500));
+        await new Promise((r) => setTimeout(r, 1000));
         attempts++;
 
         const pollRes = await fetch(`${this.baseUrl}/nodes/runs/${runId}`, {

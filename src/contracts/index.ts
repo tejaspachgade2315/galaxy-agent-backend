@@ -28,6 +28,7 @@ export const ToolResultBlockSchema = z.object({
   output: z.any().optional(),
   isError: z.boolean().optional(),
   creditsCost: z.number().optional(),
+  durationMs: z.number().optional(),
 });
 
 export const ContentBlockSchema = z.discriminatedUnion("type", [
