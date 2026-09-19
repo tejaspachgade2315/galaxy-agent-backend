@@ -20,6 +20,21 @@ export const DEV_USER: AuthenticatedUser = {
  * the user record exists in the PostgreSQL database.
  */
 export async function authenticateRequest(req: NextRequest): Promise<AuthenticatedUser | null> {
+  // Allow test environment to run without live Clerk tokens for automated Vitest suites
+  if (process.env.NODE_ENV === "test") {
+    const user = await prisma.user.upsert({
+      where: { id: DEV_USER.id },
+      update: {},
+      create: {
+        id: DEV_USER.id,
+        email: DEV_USER.email,
+        name: DEV_USER.name,
+        creditsBalance: 1000,
+      },
+    });
+    return { id: user.id, email: user.email, name: user.name || "Candidate Engineer" };
+  }
+
   const clerkSecret = process.env.CLERK_SECRET_KEY;
 
   if (clerkSecret) {
@@ -27,8 +42,6 @@ export async function authenticateRequest(req: NextRequest): Promise<Authenticat
       const authHeader = req.headers.get("Authorization");
       if (authHeader && authHeader.startsWith("Bearer ")) {
         const token = authHeader.substring(7);
-        // Verify token with clerk backend if needed, or extract claims
-        // For standard Clerk request verification:
         const { verifyToken } = await import("@clerk/backend");
         const verified = await verifyToken(token, { secretKey: clerkSecret });
         if (verified && verified.sub) {
@@ -46,21 +59,13 @@ export async function authenticateRequest(req: NextRequest): Promise<Authenticat
         }
       }
     } catch (err) {
-      console.warn("Clerk verification failed, falling back if dev allowed:", err);
+      console.warn("Clerk verification failed:", err);
+      return null;
     }
+
+    // In production, unauthenticated requests are strictly rejected
+    return null;
   }
 
-  // Graceful fallback: Ensure default development user exists in PostgreSQL
-  const user = await prisma.user.upsert({
-    where: { id: DEV_USER.id },
-    update: {},
-    create: {
-      id: DEV_USER.id,
-      email: DEV_USER.email,
-      name: DEV_USER.name,
-      creditsBalance: 1000,
-    },
-  });
-
-  return { id: user.id, email: user.email, name: user.name || "Candidate Engineer" };
+  return null;
 }
