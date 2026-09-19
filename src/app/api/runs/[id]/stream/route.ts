@@ -47,7 +47,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       }, 15000);
 
       // 1. Subscribe to in-process memory emitter (instant zero-latency for co-located runs)
+      let hasReceivedInMemoryEvent = false;
+
       unsubscribe = runManager.subscribe(runId, (event: string, data: any) => {
+        hasReceivedInMemoryEvent = true;
         sendEvent(event, data);
 
         if (event === "done") {
@@ -62,10 +65,13 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         }
       });
 
-      // 2. Database Sync Loop: bridges across serverless lambda containers
+      // 2. Database Sync Fallback: ONLY activates if no in-memory events arrive within 3s
+      //    This means we're on a different serverless container from the execution.
+      //    We do NOT run both simultaneously because ti.id (DB primary key) ≠ tc.id (OpenRouter tool call ID),
+      //    which causes the frontend to display duplicate tool cards.
+      let hasEmittedTerminal = false;
       const knownToolStarts = new Set<string>();
       const knownToolEnds = new Set<string>();
-      let hasEmittedTerminal = false;
 
       const checkDbState = async () => {
         if (isClosed || hasEmittedTerminal) return;
@@ -80,6 +86,15 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           });
 
           if (!run) return;
+
+          // Emit thinking from the persisted message content
+          if (run.message) {
+            const blocks = Array.isArray(run.message.content) ? (run.message.content as any[]) : [];
+            const thinkingBlock = blocks.find((b: any) => b.type === "thinking");
+            if (thinkingBlock?.thinking && thinkingBlock.thinking !== "Preparing response...") {
+              sendEvent("thinking_sync", { text: thinkingBlock.thinking });
+            }
+          }
 
           // Stream any tools found in database
           for (const ti of run.toolInvocations) {
@@ -135,9 +150,36 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         }
       };
 
-      // Run initial DB check immediately, then poll every 1500ms
-      await checkDbState();
-      dbSyncTimer = setInterval(checkDbState, 1500);
+      // Wait 3 seconds, then check: if no in-memory events have arrived, activate DB polling as fallback
+      setTimeout(() => {
+        if (!hasReceivedInMemoryEvent && !isClosed) {
+          // We're on a different serverless container — enable DB polling
+          checkDbState();
+          dbSyncTimer = setInterval(checkDbState, 1500);
+        } else if (!isClosed) {
+          // In-memory events are flowing, but still poll for terminal status only (not tools)
+          // in case the execution container crashes mid-run
+          dbSyncTimer = setInterval(async () => {
+            if (isClosed) return;
+            try {
+              const run = await prisma.agentRun.findUnique({
+                where: { id: runId },
+                select: { status: true, messageId: true },
+              });
+              if (run && (run.status === "completed" || run.status === "failed" || run.status === "cancelled")) {
+                if (!isClosed) {
+                  sendEvent("status", { status: run.status });
+                  sendEvent("done", { runId, status: run.status, messageId: run.messageId });
+                  isClosed = true;
+                  clearInterval(keepAliveTimer);
+                  if (dbSyncTimer) clearInterval(dbSyncTimer);
+                  setTimeout(() => { try { controller.close(); } catch (_) {} }, 100);
+                }
+              }
+            } catch (_) {}
+          }, 5000); // Light polling every 5s just for crash recovery
+        }
+      }, 3000);
     },
     cancel() {
       isClosed = true;
